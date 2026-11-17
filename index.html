@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chaos Arcade</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f1eefe;--ink:#1d1540;--card:#fff;--line:#d9d0f5;--muted:#5a4f86;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#120b2b;--ink:#f1ecff;--card:#1e1445;--line:#35286b;--muted:#b3a7e6}}
+:root[data-theme="dark"]{--bg:#120b2b;--ink:#f1ecff;--card:#1e1445;--line:#35286b;--muted:#b3a7e6}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100%}
+.wrap{max-width:960px;margin:0 auto;padding:22px 16px 40px}
+header{text-align:center;margin-bottom:22px}
+h1{margin:0;font-family:Bungee,Impact,sans-serif;font-weight:400;font-size:clamp(34px,9vw,64px);line-height:1;letter-spacing:1px;background:linear-gradient(90deg,#ff4d8d,#ffb02e,#3ddc97,#4aa8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin:10px auto 16px;max-width:520px;color:var(--muted);font-size:16px}
+.rand{font:inherit;font-weight:700;font-size:16px;padding:12px 22px;border-radius:999px;border:0;background:var(--ink);color:var(--bg);cursor:pointer}
+.rand:active{transform:scale(.97)}
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+.card{position:relative;display:flex;flex-direction:column;gap:8px;padding:16px 16px 14px;background:var(--card);border:2px solid var(--line);border-radius:18px;text-decoration:none;color:inherit;overflow:hidden;transition:transform .12s,border-color .12s}
+.card::before{content:"";position:absolute;inset:0 0 auto 0;height:6px;background:var(--a)}
+.card:hover,.card:focus-visible{transform:translateY(-3px);border-color:var(--a);outline:none}
+.top{display:flex;align-items:center;gap:12px}
+.ico{width:54px;height:54px;border-radius:14px;background:var(--a);display:flex;align-items:center;justify-content:center;font-size:30px}
+.card h2{margin:0;font-family:Bungee,Impact,sans-serif;font-weight:400;font-size:21px}
+.card p{margin:0;color:var(--muted);font-size:15px;line-height:1.4}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tags span{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line)}
+.play{margin-top:4px;align-self:flex-start;font-weight:800;font-size:15px;padding:9px 18px;border-radius:999px;background:var(--a);color:#14102b}
+footer{text-align:center;margin-top:26px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Chaos Arcade</h1>
+    <p class="sub">Quick 1v1 games with a twist. Play with a friend on one screen or take on the CPU, with power-ups on or off.</p>
+    <button class="rand" id="rand">🎲 Surprise me</button>
+  </header>
+  <main class="grid">
+    <a class="card" style="--a:#3ddc97" href="kick.html">
+      <div class="top"><div class="ico">⚽</div><h2>Chaos Kick</h2></div>
+      <p>1v1 arena football. Choose 2 goals for a standard match or 4 goals where you guard two each.</p>
+      <div class="tags"><span>2 or 4 goals</span><span>Power-ups</span><span>Vs CPU</span></div>
+      <span class="play">Play ▶</span>
+    </a>
+    <a class="card" style="--a:#8f7bff" href="snooker.html">
+      <div class="top"><div class="ico">🎱</div><h2>Chaos Snooker</h2></div>
+      <p>Pot reds, gold and black on a purple table full of bouncy brass bumpers. Pull back and shoot.</p>
+      <div class="tags"><span>Slingshot aim</span><span>Power-ups</span><span>Vs CPU</span></div>
+      <span class="play">Play ▶</span>
+    </a>
+    <a class="card" style="--a:#4aa8ff" href="bowling.html">
+      <div class="top"><div class="ico">🎳</div><h2>Chaos Bowling</h2></div>
+      <p>Three taps per throw: position, aim, power. Ten frames with real bowling scoring.</p>
+      <div class="tags"><span>Timing game</span><span>Power-ups</span><span>Vs CPU</span></div>
+      <span class="play">Play ▶</span>
+    </a>
+    <a class="card" style="--a:#ff9f43" href="hoops.html">
+      <div class="top"><div class="ico">🏀</div><h2>Chaos Hoops</h2></div>
+      <p>Head-soccer style basketball with a hoop on each wall. Bump, jump, shoot. 90 seconds on the clock.</p>
+      <div class="tags"><span>90 second match</span><span>Power-ups</span><span>Vs CPU</span></div>
+      <span class="play">Play ▶</span>
+    </a>
+    <a class="card" style="--a:#b6e04a" href="golf.html">
+      <div class="top"><div class="ico">⛳</div><h2>Chaos Golf</h2></div>
+      <p>Five weird holes with water, sand, a windmill and portals. Fewest strokes wins.</p>
+      <div class="tags"><span>5 holes</span><span>Power-ups</span><span>Vs CPU</span></div>
+      <span class="play">Play ▶</span>
+    </a>
+  </main>
+  <footer>More games coming soon. 🕹️</footer>
+</div>
+<script>
+document.getElementById('rand').addEventListener('click',function(){
+  var links=document.querySelectorAll('.card');
+  location.href=links[Math.floor(Math.random()*links.length)].getAttribute('href');
+});
+</script>
+</body>
+</html>
