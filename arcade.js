@@ -20,12 +20,9 @@
       cool: { n: 'Cool', p: 40, e: ['👑', '💎', '🚀', '👽'] }
     }
   };
-  CAT.theme.galaxy = { n: 'Galaxy', p: 0, ex: true };
-  CAT.frame.diamond = { n: 'Diamond', p: 0, ex: true };
-  CAT.color.glitch = { n: 'Glitch', p: 0, ex: true };
   function fresh() {
     return {
-      name: 'Player', avatar: '😎', games: {}, streak: 0, best: 0, coins: 0, earned: 0, unlocked: { claw: false }, pity: 0,
+      name: 'Player', avatar: '😎', games: {}, streak: 0, best: 0, coins: 0, earned: 0,
       own: { theme: ['default'], frame: ['none'], color: ['default'], pack: [] },
       eq: { theme: 'default', frame: 'none', color: 'default' }
     };
@@ -38,7 +35,6 @@
         for (k in f) if (p[k] === undefined) p[k] = f[k];
         for (k in f.own) if (!p.own[k]) p.own[k] = f.own[k];
         for (k in f.eq) if (!p.eq[k]) p.eq[k] = f.eq[k];
-        for (k in f.unlocked) if (p.unlocked[k] === undefined) p.unlocked[k] = f.unlocked[k];
         return p;
       }
     } catch (e) {}
@@ -71,7 +67,6 @@
     var p = load(), it = CAT[cat] && CAT[cat][id];
     if (!it) return { ok: false, msg: 'Item not found.' };
     if (p.own[cat].indexOf(id) >= 0) return { ok: false, msg: 'You already own that.' };
-    if (it.ex) return { ok: false, msg: 'Only from the Prize Claw.' };
     if (p.coins < it.p) return { ok: false, msg: 'Need ' + (it.p - p.coins) + ' more 🪙' };
     p.coins -= it.p; p.own[cat].push(id);
     if (cat !== 'pack') p.eq[cat] = id;
@@ -83,22 +78,8 @@
     if (cat !== 'pack' && p.own[cat].indexOf(id) >= 0) { p.eq[cat] = id; save(p); return true; }
     return false;
   }
-  function addCoins(n) { var p = load(); p.coins += n; p.earned += n; save(p); }
-  function spend(n) { var p = load(); if (p.coins < n) return false; p.coins -= n; save(p); return true; }
-  function isUnlocked(id) { return !!load().unlocked[id]; }
-  function unlock(id) { var p = load(); p.unlocked[id] = true; save(p); }
-  function pity(v) { var p = load(); if (v === undefined) return p.pity || 0; p.pity = v; save(p); return v; }
-  function giveExclusive() {
-    var p = load(), left = [], c, id;
-    for (c in CAT) for (id in CAT[c]) if (CAT[c][id].ex && p.own[c].indexOf(id) < 0) left.push([c, id]);
-    if (!left.length) return null;
-    var e = left[Math.floor(Math.random() * left.length)];
-    p.own[e[0]].push(e[1]); save(p);
-    return { cat: e[0], id: e[1], name: CAT[e[0]][e[1]].n };
-  }
   window.Arcade = {
     CAT: CAT, load: load, save: save, record: record, buy: buy, equip: equip,
-    addCoins: addCoins, spend: spend, isUnlocked: isUnlocked, unlock: unlock, pity: pity, giveExclusive: giveExclusive,
     /* Resets wins/losses/streaks only. Coins, purchases, name and avatar are kept. */
     reset: function () { var p = load(); p.games = {}; p.streak = 0; p.best = 0; save(p); }
   };
