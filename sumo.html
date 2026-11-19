@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Chaos Sumo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4ecdf;--ink:#2a1a12;--card:#fff;--line:#e0cfb6;--blue:#2f6bff;--gold:#e58a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1a1424;--ink:#f3e9dd;--card:#2a2038;--line:#43375a;--gold:#ffae2e}}
+:root[data-theme="dark"]{--bg:#1a1424;--ink:#f3e9dd;--card:#2a2038;--line:#43375a;--gold:#ffae2e}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;-webkit-user-select:none;user-select:none}
+header{width:100%;max-width:800px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.sc{display:flex;align-items:center;gap:8px;font-family:Bungee,Impact,sans-serif;font-size:15px}
+.sc b{font-size:34px;line-height:1}
+.sc.b{color:var(--blue)}.sc.g{color:var(--gold);justify-content:flex-end}
+header small{font-size:12px;opacity:.7;text-align:center}
+.meters{width:100%;max-width:800px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.meter{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--blue)}
+.meter.g i{background:var(--gold)}
+.meter.full i{animation:pulse .4s infinite alternate}
+@keyframes pulse{to{filter:brightness(1.5)}}
+canvas{width:100%;max-width:800px;height:auto;aspect-ratio:8/5;border-radius:14px;touch-action:none;display:block;background:#1d1b3a}
+.pads{width:100%;max-width:800px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.side{display:flex;flex-direction:column;gap:8px}
+.tap{height:min(26vh,200px);min-height:120px;border:0;border-radius:20px;font-family:Bungee,Impact,sans-serif;font-size:26px;color:#fff;touch-action:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;line-height:1}
+.tap small{font-family:system-ui,sans-serif;font-size:12px;font-weight:600;opacity:.85}
+.tap.b{background:var(--blue)}.tap.g{background:var(--gold);color:#2a1a12}
+.tap:active,.tap.down{filter:brightness(1.25);transform:scale(.97)}
+.pw{font:inherit;font-weight:700;font-size:14px;padding:12px;border-radius:14px;border:2px solid var(--ink);background:var(--card);color:var(--ink);touch-action:none;cursor:pointer}
+.pw:disabled{opacity:.4}
+.pw.ready{background:var(--ink);color:var(--bg)}
+.row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+.row span{font-size:13px;opacity:.8}
+button.o{font:inherit;font-weight:600;padding:8px 14px;border-radius:999px;border:2px solid var(--ink);background:var(--card);color:var(--ink);cursor:pointer}
+button.o.on{background:var(--ink);color:var(--bg)}
+button.go{font:inherit;font-weight:700;padding:10px 20px;border-radius:999px;border:0;background:var(--blue);color:#fff;cursor:pointer}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+p{margin:0;font-size:13px;opacity:.85;text-align:center;max-width:640px}
+</style>
+</head>
+<body>
+<a href="index.html" style="align-self:flex-start;font:600 13px system-ui,sans-serif;color:inherit;opacity:.75;text-decoration:none">← Chaos Arcade</a>
+
+<header>
+  <div class="sc b"><span>Blue</span><b id="w0">0</b></div>
+  <small>First to 3<br>rounds wins</small>
+  <div class="sc g"><b id="w1">0</b><span>Gold</span></div>
+</header>
+<div class="meters" id="meters" hidden><div class="meter" id="m0"><i></i></div><div class="meter g" id="m1"><i></i></div></div>
+<canvas id="c" width="800" height="500"></canvas>
+<div class="pads">
+  <div class="side"><button class="pw" id="pw0" data-p="0" hidden>⚡ POWER (Z)</button><button class="tap b" id="t0" data-p="0">TAP!<small>Space</small></button></div>
+  <div class="side" id="side1"><button class="pw" id="pw1" data-p="1" hidden>⚡ POWER (M)</button><button class="tap g" id="t1" data-p="1">TAP!<small>Enter</small></button></div>
+</div>
+<button class="go" id="next" hidden>Next round ▶</button>
+<div class="row"><span>Power-ups</span><button class="o on" id="p0">Off</button><button class="o" id="p1">On</button></div>
+<div class="row"><span>Opponent</span><button class="o on" id="o2">2 players</button><button class="o" id="o1">Vs CPU</button><button class="o" id="nm">New match</button></div>
+<p>Tap as fast as you can to shove your rival out of the ring. The ring shrinks over time. With power-ups on, every tap charges your power bar. When it’s full, hit POWER for a random move: mega push, freeze rival, double taps or icy ring. Blue taps with Space and Gold with Enter. Power keys are Z and M.</p>
+<script src="arcade.js"></script>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d'),$=id=>document.getElementById(id);
+const W=800,H=500,CX=400,CY=250,BODY=34,R0=200,RMIN=95,K=1.5,SPRING=.0016;
+const COL=['#2f6bff','#ffae2e'],NAME=['Blue','Gold'];
+let power=false,opp=2,state='count',cd=3,wins=[0,0],cx=0,v=0,t=0,meter=[0,0],frozen=[0,0],mult=[0,0],ice=0,anim=[0,0],evt=null,koT=0,loser=-1,matchOver=false,msg='',last=0,acc=0,cpuAcc=0,cpuNext=.15,cpuPw=0;
+const ring=()=>Math.max(RMIN,R0-t*2.6);
+function startRound(){cx=0;v=0;t=0;meter=[0,0];frozen=[0,0];mult=[0,0];ice=0;anim=[0,0];evt=null;loser=-1;koT=0;state='count';cd=3;msg='';cpuAcc=0;cpuPw=0;ui();}
+function newMatch(){wins=[0,0];matchOver=false;startRound();}
+function ui(){
+  $('w0').textContent=wins[0];$('w1').textContent=wins[1];
+  $('meters').hidden=!power;$('pw0').hidden=!power;$('pw1').hidden=!power||opp===1;
+  $('side1').style.display=opp===1?'none':'';
+  $('t1').parentNode.parentNode.style.gridTemplateColumns=opp===1?'1fr':'1fr 1fr';
+  $('next').hidden=!(state==='over');
+  $('next').textContent=matchOver?'New match ▶':'Next round ▶';
+  for(const i of[0,1]){const f=meter[i]>=100;$('m'+i).firstChild.style.width=meter[i]+'%';$('m'+i).classList.toggle('full',f);$('pw'+i).disabled=!f;$('pw'+i).classList.toggle('ready',f);}
+}
+function tap(p){
+  if(state!=='play'||frozen[p]>0)return;
+  v+=(p===0?1:-1)*K*(mult[p]>0?2:1);anim[p]=1;
+  if(power)meter[p]=Math.min(100,meter[p]+5);
+}
+function usePower(p){
+  if(state!=='play'||!power||meter[p]<100)return;
+  meter[p]=0;const d=p===0?1:-1,k=Math.floor(Math.random()*4);
+  if(k===0){v+=d*8;evt=[NAME[p]+': MEGA PUSH!',1.2];}
+  else if(k===1){frozen[1-p]=1.5;evt=[NAME[p]+': FREEZE!',1.2];}
+  else if(k===2){mult[p]=4;evt=[NAME[p]+': DOUBLE TAPS!',1.2];}
+  else{ice=5;evt=['ICY RING!',1.2];}
+}
+function endRound(l){
+  loser=l;const w=1-l;wins[w]++;state='ko';koT=1;
+  matchOver=wins[w]>=3;if(matchOver)window.Arcade&&Arcade.record('sumo',w===0?'win':'loss',opp===1);msg=matchOver?NAME[w]+' wins the match! 🏆':NAME[w]+' wins the round!';
+}
+function step(d){
+  if(state==='count'){cd-=d;if(cd<=0){state='play';evt=['FIGHT!',.8];}return;}
+  if(state==='ko'){koT-=d;cx+=v*.6;if(koT<=0){state='over';ui();}return;}
+  if(state!=='play')return;
+  t+=d;
+  for(const i of[0,1]){frozen[i]=Math.max(0,frozen[i]-d);mult[i]=Math.max(0,mult[i]-d);anim[i]=Math.max(0,anim[i]-d*6);}
+  ice=Math.max(0,ice-d);
+  if(evt){evt[1]-=d;if(evt[1]<=0)evt=null;}
+  if(opp===1){
+    cpuAcc+=d;
+    if(cpuAcc>=cpuNext){cpuAcc=0;cpuNext=.11+Math.random()*.09;tap(1);}
+    if(power&&meter[1]>=100){cpuPw+=d;if(cpuPw>.5){cpuPw=0;usePower(1);}}
+  }
+  v+=-SPRING*cx;v*=ice>0?.975:.92;cx+=v;
+  const r=ring();
+  if(cx-2*BODY<=-r)return endRound(0);
+  if(cx+2*BODY>=r)return endRound(1);
+  ui();
+}
+function circ(x,y,r,f,s,lw){g.beginPath();g.arc(x,y,r,0,7);if(f){g.fillStyle=f;g.fill();}if(s){g.strokeStyle=s;g.lineWidth=lw;g.stroke();}}
+function wrestler(p,x,y,sc,alpha){
+  const d=p===0?1:-1;g.save();g.globalAlpha=alpha;g.translate(x,y);g.scale(sc,sc);
+  circ(d*40,-14,10,COL[p],'#fff',2);circ(d*40,14,10,COL[p],'#fff',2);
+  circ(0,0,BODY,frozen[p]>0?'#bfebff':COL[p],'#fff',4);
+  g.fillStyle='#fff';g.fillRect(-BODY+4,-3,BODY*2-8,6);
+  circ(d*14,-9,6,'#fff');circ(d*14,9,6,'#fff');circ(d*16,-9,2.5,'#111');circ(d*16,9,2.5,'#111');
+  g.restore();
+}
+function draw(){
+  g.fillStyle='#1d1b3a';g.fillRect(0,0,W,H);
+  g.setLineDash([8,10]);g.strokeStyle='rgba(255,255,255,.18)';g.lineWidth=2;circ(CX,CY,R0,0,'rgba(255,255,255,.18)',2);g.setLineDash([]);
+  const r=ring();
+  circ(CX,CY,r+12,'#c1272d');circ(CX,CY,r,'#d8b97a');
+  g.strokeStyle='rgba(120,80,30,.35)';g.lineWidth=2;
+  for(let a=-r+30;a<r;a+=30){g.beginPath();g.moveTo(CX+a,CY-Math.sqrt(Math.max(0,r*r-a*a)));g.lineTo(CX+a,CY+Math.sqrt(Math.max(0,r*r-a*a)));g.stroke();}
+  g.strokeStyle='#8a5a2c';g.lineWidth=4;g.beginPath();g.moveTo(CX-36,CY-34);g.lineTo(CX-36,CY+34);g.moveTo(CX+36,CY-34);g.lineTo(CX+36,CY+34);g.stroke();
+  const jit=state==='play'?Math.min(4,Math.abs(v)*.8):0;
+  for(const p of[0,1]){
+    let x=CX+cx+(p===0?-BODY:BODY),y=CY+(Math.random()-.5)*jit,sc=1+.18*anim[p],al=1;
+    if(state==='ko'||state==='over'){if(p===loser){sc=Math.max(.3,koT*.9+.1);al=Math.max(.2,koT);}}
+    wrestler(p,x,y,sc,al);
+  }
+  g.textAlign='center';g.textBaseline='middle';
+  if(state==='count'){g.fillStyle='#fff';g.font='90px Bungee,Impact,sans-serif';g.fillText(Math.ceil(cd),W/2,CY);}
+  if(evt){g.fillStyle='#fff';g.font='34px Bungee,Impact,sans-serif';g.fillText(evt[0],W/2,60);}
+  if(state==='ko'||state==='over'){g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,CY-50,W,100);g.fillStyle='#fff';g.font='38px Bungee,Impact,sans-serif';g.fillText(msg,W/2,CY);}
+}
+function loop(tm){
+  const d=Math.min(.05,(tm-last)/1000||0);last=tm;
+  acc+=d;while(acc>=1/60){step(1/60);acc-=1/60;}
+  draw();requestAnimationFrame(loop);
+}
+for(const b of document.querySelectorAll('.tap'))b.addEventListener('pointerdown',e=>{e.preventDefault();b.classList.add('down');tap(+b.dataset.p);});
+for(const b of document.querySelectorAll('.tap'))for(const ev of['pointerup','pointercancel','pointerleave'])b.addEventListener(ev,()=>b.classList.remove('down'));
+for(const b of document.querySelectorAll('.pw'))b.addEventListener('pointerdown',e=>{e.preventDefault();usePower(+b.dataset.p);});
+addEventListener('keydown',e=>{
+  if(e.repeat)return;
+  if(e.code==='Space'){e.preventDefault();tap(0);}
+  else if(e.code==='Enter'){e.preventDefault();tap(opp===1?0:1);}
+  else if(e.code==='KeyZ')usePower(0);
+  else if(e.code==='KeyM')usePower(opp===1?0:1);
+});
+$('next').onclick=()=>matchOver?newMatch():startRound();
+const sw=(a,b,on)=>{$(a).classList.toggle('on',on);$(b).classList.toggle('on',!on);};
+$('p0').onclick=()=>{power=false;sw('p0','p1',true);newMatch();};
+$('p1').onclick=()=>{power=true;sw('p0','p1',false);newMatch();};
+$('o2').onclick=()=>{opp=2;sw('o2','o1',true);newMatch();};
+$('o1').onclick=()=>{opp=1;sw('o2','o1',false);newMatch();};
+$('nm').onclick=newMatch;
+newMatch();requestAnimationFrame(loop);
+</script>
+</body>
+</html>

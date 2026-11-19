@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chaos Bowling</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e8f1f6;--ink:#10283a;--card:#fff;--line:#c5d8e4;--blue:#2f6bff;--gold:#e58a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1b26;--ink:#e6f1f8;--card:#17303f;--line:#2b4859;--gold:#ffae2e}}
+:root[data-theme="dark"]{--bg:#0d1b26;--ink:#e6f1f8;--card:#17303f;--line:#2b4859;--gold:#ffae2e}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;box-sizing:border-box}
+h1{margin:0;font-family:Bungee,Impact,sans-serif;font-weight:400;font-size:20px}
+table{width:100%;max-width:460px;table-layout:fixed;border-collapse:collapse;font-size:11px;background:var(--card);border-radius:8px;overflow:hidden}
+th,td{border:1px solid var(--line);padding:2px 1px;text-align:center}
+th.nm{width:38px;font-size:11px}
+.m{height:14px;font-weight:600}.s{font-weight:700}
+tr.cur th.nm{outline:2px solid currentColor;outline-offset:-2px}
+#note{font-size:14px;font-weight:600;text-align:center;min-height:20px}
+canvas{width:100%;max-width:420px;height:60vh;object-fit:contain;border-radius:14px;touch-action:manipulation;display:block;background:#1b1330}
+.row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+.row span{font-size:13px;opacity:.8}
+button{font:inherit;font-weight:600;padding:8px 14px;border-radius:999px;border:2px solid var(--ink);background:var(--card);color:var(--ink);cursor:pointer}
+button.on{background:var(--ink);color:var(--bg)}
+button.go{background:var(--blue);border-color:var(--blue);color:#fff}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+p{margin:0;font-size:13px;opacity:.85;text-align:center;max-width:460px}
+</style>
+</head>
+<body>
+<a href="index.html" style="align-self:flex-start;font:600 13px system-ui,sans-serif;color:inherit;opacity:.75;text-decoration:none">← Chaos Arcade</a>
+
+<h1>Chaos Bowling</h1>
+<table id="board"></table>
+<div id="note">Pick your options, then start.</div>
+<canvas id="c" width="420" height="700"></canvas>
+<div class="row"><span>Power-ups</span><button id="p0" class="on">Off</button><button id="p1">On</button></div>
+<div class="row"><span>Opponent</span><button id="o2" class="on">2 players</button><button id="o1">Vs CPU</button><button id="go" class="go">Start game</button></div>
+<p>Each throw is three taps: lock the ball’s position, lock your aim, then stop the power bar. 10 frames, normal bowling scoring. With power-ups on, two orbs sit on the lane: G giant ball, M magnet pulls the ball to pins, S splits it into three, B bomb blasts the pins when it hits.</p>
+<script src="arcade.js"></script>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d'),$=id=>document.getElementById(id);
+const W=420,H=700,LX0=110,LX1=310,CX=210,BR=14,PR=8,FOUL=650,PIT=95;
+const COL=['#2f6bff','#ffae2e'],NAME=['Blue','Gold'];
+const PW={giant:['#ffd23f','G'],magnet:['#c77dff','M'],split:['#7dff9b','S'],bomb:['#ff8a4c','B']};
+let power=false,opp=2,state='menu',cur=0,PL=[],pins=[],balls=[],orbs=[],pos=CX,ang=0,pw=0,tt=0,cpuT=1,bt=0,banner='',rollT=0,last=0,acc=0,gutterHit=false;
+const np=()=>({f:0,fr:[],rolls:[],done:false});
+function resetPins(){pins=[];for(let r=0;r<4;r++)for(let k=0;k<=r;k++){const x=CX+(k-r/2)*36,y=140+r*31;pins.push({x,y,hx:x,hy:y,vx:0,vy:0,r:PR,m:1,down:false,gone:false});}}
+function frames(rolls){
+  const out=[];let i=0,cum=0;
+  for(let f=0;f<10;f++){
+    const a=rolls[i],b=rolls[i+1],c=rolls[i+2];let m=[],s=null;
+    if(a===undefined){out.push({m,s});continue;}
+    if(f<9){
+      if(a===10){m=['X'];if(b!==undefined&&c!==undefined){cum+=10+b+c;s=cum;}i+=1;}
+      else{m=[a];if(b!==undefined){if(a+b===10){m=[a,'/'];if(c!==undefined){cum+=10+c;s=cum;}}else{m=[a,b];cum+=a+b;s=cum;}}i+=2;}
+    }else{
+      const r=rolls.slice(i);
+      m=r.map((v,k)=>v===10?'X':(k>0&&r[k-1]!==10&&r[k-1]+v===10?'/':v));
+      if(r.length>=3||(r.length===2&&r[0]+r[1]<10)){cum+=r.reduce((x,y)=>x+y,0);s=cum;}
+    }
+    out.push({m,s});
+  }
+  return out;
+}
+const total=r=>{const f=frames(r).filter(x=>x.s!==null);return f.length?f[f.length-1].s:0;};
+function renderBoard(){
+  let h='<tr><th></th>'+[1,2,3,4,5,6,7,8,9,10].map(i=>'<th>'+i+'</th>').join('')+'<th>Tot</th></tr>';
+  for(let i=0;i<2;i++){
+    const p=PL[i]||np(),fr=frames(p.rolls);
+    h+='<tr class="'+(i===cur&&state!=='menu'&&state!=='over'?'cur':'')+'"><th class="nm" style="color:'+COL[i]+'">'+NAME[i]+'</th>'+
+      fr.map(x=>'<td><div class="m">'+x.m.join(' ')+'</div><div class="s">'+(x.s===null?'':x.s)+'</div></td>').join('')+'<td class="s">'+total(p.rolls)+'</td></tr>';
+  }
+  $('board').innerHTML=h;
+}
+function hint(){
+  if(state==='aim1')return NAME[cur]+': frame '+(PL[cur].f+1)+'. Tap to lock the ball’s position.';
+  if(state==='aim2')return 'Tap to lock your aim.';
+  if(state==='aim3')return 'Tap to stop the power bar and throw.';
+  return '';
+}
+function startGame(){PL=[np(),np()];cur=0;resetPins();balls=[];orbs=[];state='aim1';tt=0;cpuT=1;$('go').textContent='Restart';renderBoard();$('note').textContent=hint();}
+const human=()=>!(opp===1&&cur===1);
+function tap(e){
+  if(e)e.preventDefault();
+  if(!human())return;
+  if(state==='aim1'){pos=CX+Math.sin(tt*2.4)*80;state='aim2';tt=0;}
+  else if(state==='aim2'){ang=Math.sin(tt*2.6)*.3;state='aim3';tt=0;}
+  else if(state==='aim3'){pw=.5-.5*Math.cos(tt*3.4);launch(pos,ang,pw);return;}
+  $('note').textContent=hint();
+}
+cv.addEventListener('pointerdown',tap);
+addEventListener('keydown',e=>{if(e.code==='Space')tap(e);});
+function launch(x,a,p){
+  const sp=6+p*10;
+  balls=[{x,y:FOUL,vx:Math.sin(a)*sp,vy:-Math.cos(a)*sp,r:BR,m:6,col:COL[cur],gut:false,gone:false,mag:false,bomb:false}];
+  orbs=[];gutterHit=false;
+  if(power){
+    const ks=Object.keys(PW);
+    for(let i=0;i<2;i++){orbs.push({x:LX0+30+Math.random()*(LX1-LX0-60),y:330+Math.random()*190,k:ks[Math.floor(Math.random()*ks.length)]});}
+  }
+  state='roll';rollT=0;acc=0;$('note').textContent='';
+}
+function hit(a,b,e){
+  const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),min=a.r+b.r;
+  if(d>=min||d===0)return 0;
+  const nx=dx/d,ny=dy/d,im=1/a.m+1/b.m,ov=min-d;
+  a.x-=nx*ov/a.m/im;a.y-=ny*ov/a.m/im;b.x+=nx*ov/b.m/im;b.y+=ny*ov/b.m/im;
+  const vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+  if(vn<0){const j=-(1+e)*vn/im;a.vx-=j*nx/a.m;a.vy-=j*ny/a.m;b.vx+=j*nx/b.m;b.vy+=j*ny/b.m;}
+  return 1;
+}
+function applyOrb(b,o){
+  if(o.k==='giant'){b.r*=1.7;b.m*=2.5;}
+  else if(o.k==='magnet')b.mag=true;
+  else if(o.k==='bomb')b.bomb=true;
+  else if(o.k==='split'){for(const s of[-2.6,2.6])balls.push({x:b.x,y:b.y,vx:b.vx+s,vy:b.vy,r:BR*.8,m:4,col:b.col,gut:false,gone:false,mag:false,bomb:false});}
+}
+function sub(){
+  for(const b of balls){
+    if(b.gone)continue;
+    b.x+=b.vx/3;b.y+=b.vy/3;
+    if(b.mag&&!b.gut){
+      let t=null,bd=1e9;
+      for(const p of pins)if(!p.down&&p.y<b.y-10){const d=Math.hypot(p.x-b.x,p.y-b.y);if(d<bd){bd=d;t=p;}}
+      if(t)b.vx=Math.max(-6,Math.min(6,b.vx+Math.max(-.3,Math.min(.3,(t.x-b.x)*.02))));
+    }
+    if(!b.gut&&(b.x<LX0||b.x>LX1)){b.gut=true;gutterHit=true;b.x=b.x<LX0?95:325;b.vx=0;b.vy=-Math.max(5,Math.abs(b.vy));}
+    if(b.y<PIT-20||Math.hypot(b.vx,b.vy)<.4)b.gone=true;
+    if(!b.gut)for(const p of pins){
+      if(p.gone)continue;
+      if(hit(b,p,.75)&&b.bomb){
+        b.bomb=false;
+        for(const q of pins){const dx=q.x-b.x,dy=q.y-b.y,d=Math.hypot(dx,dy)||1;q.vx+=dx/d*9;q.vy+=dy/d*9;}
+      }
+    }
+  }
+  for(let i=0;i<pins.length;i++)for(let j=i+1;j<pins.length;j++)if(!pins[i].gone&&!pins[j].gone)hit(pins[i],pins[j],.7);
+  for(const q of pins){
+    if(q.gone)continue;
+    q.x+=q.vx/3;q.y+=q.vy/3;
+    if(Math.hypot(q.x-q.hx,q.y-q.hy)>10)q.down=true;
+    if(q.y<PIT||q.x<80||q.x>340||q.y>H){q.down=true;q.gone=true;q.vx=q.vy=0;}
+  }
+}
+function frame(){
+  sub();sub();sub();
+  for(const q of pins){q.vx*=.972;q.vy*=.972;if(Math.hypot(q.vx,q.vy)<.05){q.vx=0;q.vy=0;}}
+  for(const o of[...orbs])for(const b of balls)if(!b.gone&&!b.gut&&Math.hypot(b.x-o.x,b.y-o.y)<b.r+14){applyOrb(b,o);orbs.splice(orbs.indexOf(o),1);break;}
+  rollT++;
+  const still=!pins.some(q=>!q.gone&&(q.vx||q.vy));
+  if((balls.every(b=>b.gone)&&still)||rollT>1200)endRoll();
+}
+function endRoll(){
+  const before=pins.length,k=pins.filter(p=>p.down).length;
+  pins=pins.filter(p=>!p.down);
+  let msg=k+(k===1?' pin':' pins');
+  if(before===10&&k===10)msg='STRIKE!';
+  else if(before<10&&pins.length===0)msg='SPARE!';
+  else if(k===0)msg=gutterHit?'Gutter ball':'Miss';
+  const p=PL[cur];p.rolls.push(k);p.fr.push(k);
+  const n=p.fr.length;let done;
+  if(p.f<9)done=(n===2||k===10);
+  else{const a=p.fr[0],b=p.fr[1];done=n===3||(n===2&&a!==10&&a+b<10);}
+  if(done){p.f++;p.fr=[];if(p.f>=10)p.done=true;}
+  if(pins.length===0||done)resetPins();
+  balls=[];orbs=[];banner=msg;state='between';bt=1.2;renderBoard();
+  p.justDone=done;
+}
+function nextTurn(){
+  const p=PL[cur],o=PL[1-cur];
+  if(p.done&&o.done){
+    state='over';
+    const a=total(PL[0].rolls),b=total(PL[1].rolls);window.Arcade&&Arcade.record('bowling',a>b?'win':a<b?'loss':'draw',opp===1);
+    banner=a===b?'Draw!':NAME[a>b?0:1]+' wins!';
+    $('note').textContent=banner+' Press Restart for a rematch.';renderBoard();return;
+  }
+  if(p.justDone&&!o.done)cur=1-cur;
+  state='aim1';tt=0;cpuT=1;renderBoard();$('note').textContent=hint();
+}
+function circ(x,y,r,f,s,lw){g.beginPath();g.arc(x,y,r,0,7);if(f){g.fillStyle=f;g.fill();}if(s){g.strokeStyle=s;g.lineWidth=lw;g.stroke();}}
+function drawBall(x,y,r,col){circ(x,y,r,col,'rgba(0,0,0,.5)',2);circ(x-r*.3,y-r*.3,r*.22,'rgba(255,255,255,.6)');circ(x+r*.2,y+r*.1,r*.12,'#111');circ(x+r*.05,y+r*.35,r*.12,'#111');}
+function draw(){
+  g.fillStyle='#1b1330';g.fillRect(0,0,W,H);
+  g.fillStyle='#2a2236';g.fillRect(LX0-30,PIT,30,H-PIT);g.fillRect(LX1,PIT,30,H-PIT);
+  g.fillStyle='#d9a566';g.fillRect(LX0,PIT,LX1-LX0,H-PIT);
+  g.strokeStyle='rgba(120,70,20,.25)';g.lineWidth=1;
+  for(let x=LX0+20;x<LX1;x+=20){g.beginPath();g.moveTo(x,PIT);g.lineTo(x,H);g.stroke();}
+  g.fillStyle='#0d0818';g.fillRect(LX0-30,0,LX1-LX0+60,PIT);
+  g.strokeStyle='#fff';g.lineWidth=3;g.beginPath();g.moveTo(LX0,FOUL);g.lineTo(LX1,FOUL);g.stroke();
+  g.fillStyle='rgba(120,70,20,.5)';
+  for(const x of[150,180,210,240,270]){g.beginPath();g.moveTo(x,540);g.lineTo(x-5,552);g.lineTo(x+5,552);g.fill();}
+  g.textAlign='center';g.textBaseline='middle';g.font='bold 15px system-ui,sans-serif';
+  for(const o of orbs){circ(o.x,o.y,14,PW[o.k][0],'#10283a',3);g.fillStyle='#10283a';g.fillText(PW[o.k][1],o.x,o.y+1);}
+  for(const q of pins){if(q.gone)continue;g.globalAlpha=q.down?.55:1;circ(q.x,q.y,PR,'#fff','#d62839',2.5);g.globalAlpha=1;}
+  for(const b of balls)if(!b.gone)drawBall(b.x,b.y,b.r,b.col);
+  if(state==='aim1'||state==='aim2'||state==='aim3'){
+    const x=state==='aim1'?CX+Math.sin(tt*2.4)*80:pos;
+    const a=state==='aim2'?Math.sin(tt*2.6)*.3:state==='aim3'?ang:0;
+    if(state!=='aim1'){g.setLineDash([8,8]);g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=3;g.beginPath();g.moveTo(x,FOUL);g.lineTo(x+Math.sin(a)*420,FOUL-Math.cos(a)*420);g.stroke();g.setLineDash([]);}
+    drawBall(x,FOUL,BR,COL[cur]);
+    if(state==='aim3'){
+      const p=.5-.5*Math.cos(tt*3.4);
+      g.fillStyle='rgba(0,0,0,.5)';g.fillRect(LX0,674,LX1-LX0,16);
+      g.fillStyle='hsl('+(120-p*120)+',90%,55%)';g.fillRect(LX0,674,(LX1-LX0)*p,16);
+      g.strokeStyle='#fff';g.lineWidth=2;g.strokeRect(LX0,674,LX1-LX0,16);
+    }
+  }
+  if(state==='between'||state==='over'){g.fillStyle='rgba(16,40,58,.72)';g.fillRect(40,300,340,100);g.fillStyle='#fff';g.font='38px Bungee,Impact,sans-serif';g.fillText(banner,W/2,350);}
+  if(state==='menu'){g.fillStyle='rgba(16,40,58,.78)';g.fillRect(0,0,W,H);g.fillStyle='#fff';g.font='40px Bungee,Impact,sans-serif';g.fillText('CHAOS BOWLING',W/2,H/2-14);g.font='18px system-ui,sans-serif';g.fillText('Pick options, then tap Start game',W/2,H/2+30);}
+}
+function cpuThrow(){
+  const x=CX+(Math.random()-.5)*70;
+  launch(x,Math.atan2(CX-x,FOUL-170)+(Math.random()-.5)*.07,Math.min(1,Math.max(.45,.75+(Math.random()-.5)*.3)));
+}
+function loop(t){
+  const d=Math.min(.05,(t-last)/1000||0);last=t;
+  if(state==='roll'){acc+=d;while(acc>=1/60&&state==='roll'){frame();acc-=1/60;}}
+  else if(state==='between'){bt-=d;if(bt<=0)nextTurn();}
+  else if(state==='aim1'&&!human()){cpuT-=d;if(cpuT<=0)cpuThrow();}
+  else tt+=d;
+  draw();requestAnimationFrame(loop);
+}
+const sel=(a,b,on)=>{$(a).classList.toggle('on',on);$(b).classList.toggle('on',!on);};
+$('p0').onclick=()=>{power=false;sel('p0','p1',true);};
+$('p1').onclick=()=>{power=true;sel('p0','p1',false);};
+$('o2').onclick=()=>{opp=2;sel('o2','o1',true);};
+$('o1').onclick=()=>{opp=1;sel('o2','o1',false);};
+$('go').onclick=startGame;
+resetPins();PL=[np(),np()];renderBoard();requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Prize Claw</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fdeff9;--ink:#2a1233;--card:#fff;--line:#efc9e3;--accent:#ff4fc0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b0d24;--ink:#f8e9ff;--card:#2d1a3b;--line:#4d3163}}
+:root[data-theme="dark"]{--bg:#1b0d24;--ink:#f8e9ff;--card:#2d1a3b;--line:#4d3163}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px;-webkit-user-select:none;user-select:none}
+header{width:100%;max-width:800px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{margin:0;font-family:Bungee,Impact,sans-serif;font-weight:400;font-size:24px}
+.wallet{font-family:Bungee,Impact,sans-serif;font-size:16px;padding:8px 14px;border-radius:999px;background:var(--card);border:2px solid var(--line)}
+.legend{width:100%;max-width:800px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.legend span{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
+.status{width:100%;max-width:800px;display:flex;justify-content:space-between;font-size:13px;font-weight:700;gap:8px;flex-wrap:wrap}
+canvas{width:100%;max-width:800px;height:auto;aspect-ratio:8/5;border-radius:14px;touch-action:none;display:block;background:#2a1240}
+.ctl{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;touch-action:none}
+.ctl button{width:78px;height:78px;border-radius:50%;border:3px solid var(--ink);background:var(--card);color:var(--ink);font-size:30px;padding:0;touch-action:none;cursor:pointer}
+.ctl button.drop{width:120px;border-radius:40px;font-family:Bungee,Impact,sans-serif;font-size:20px;background:var(--accent);border-color:var(--accent);color:#fff}
+.ctl button.down{background:var(--ink);color:var(--bg)}
+.ctl button:disabled{opacity:.4}
+#insert{font:inherit;font-weight:800;font-size:18px;padding:14px 26px;border-radius:999px;border:0;background:var(--ink);color:var(--bg);cursor:pointer}
+#insert:disabled{opacity:.5}
+#note{font-size:15px;font-weight:700;text-align:center;min-height:22px;max-width:640px}
+a.back,a.lnk{font-size:14px;font-weight:700;color:inherit;opacity:.8}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+p{margin:0;font-size:13px;opacity:.85;text-align:center;max-width:640px}
+</style>
+</head>
+<body>
+<header><h1>Prize Claw</h1><div class="wallet" id="wallet">🪙 0</div></header>
+<div class="legend"><span>🪙 Coin bag</span><span>🧸 Plush (5 coins)</span><span>🎨 Exclusive cosmetic</span><span>🎫 Chaos Claw ticket</span></div>
+<div class="status"><span id="st1"></span><span id="st2"></span></div>
+<canvas id="c" width="800" height="500"></canvas>
+<div class="ctl">
+  <button id="bl" aria-label="Move left">◀</button>
+  <button id="br" aria-label="Move right">▶</button>
+  <button id="bd" class="drop">DROP</button>
+</div>
+<button id="insert">Insert 20 🪙 to play</button>
+<div id="note"></div>
+<a class="back" href="index.html">← Chaos Arcade</a>
+<p>Spend 20 coins for one grab. Steer the claw, drop it, and see what you catch. The 🎫 is the hardest to hold, but every miss gives you a luck bonus for the next try. A ticket unlocks the Chaos Claw game. A cosmetic you already own turns into coins. Keys: ← → or A D to move, Space to drop.</p>
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade,$=id=>document.getElementById(id);
+const cv=$('c'),g=cv.getContext('2d');
+const W=800,H=500,FLOOR=440,RAIL=44,HOME=70,CHUTE=140,COST=20;
+const KINDS={coin:{e:'🪙',r:20,g:.8},plush:{e:'🧸',r:22,g:.75},cos:{e:'🎨',r:20,g:.55},ticket:{e:'🎫',r:18,g:.38}};
+let items=[],claw={x:HOME,y:RAIL+30,open:1},carry=[],state='idle',t=0,msg='',msgT=0,keys={},vk={l:0,r:0},last=0,acc=0,got=null;
+function ticketBonus(){return Math.min(.4,(A?A.pity():0)*.07);}
+function spawn(k){
+  const d=KINDS[k];
+  for(let i=0;i<50;i++){
+    const x=CHUTE+40+Math.random()*(W-CHUTE-100);
+    if(items.every(o=>Math.abs(o.x-x)>o.r+d.r-2)){items.push({k,x,y:-30,vy:0,r:d.r,g:d.g+(k==='ticket'?ticketBonus():0)});return;}
+  }
+}
+function fillMachine(){
+  items=[];
+  for(const k of['ticket','cos','cos','coin','coin','coin','plush','plush'])spawn(k);
+}
+function ui(){
+  if(!A){$('note').textContent='Open this page from your Chaos Arcade site so your coins can be saved.';$('insert').disabled=true;return;}
+  const p=A.load(),ex=['theme','frame','color'].reduce((n,c)=>n+Object.keys(A.CAT[c]).filter(id=>A.CAT[c][id].ex&&p.own[c].indexOf(id)>=0).length,0),tot=['theme','frame','color'].reduce((n,c)=>n+Object.keys(A.CAT[c]).filter(id=>A.CAT[c][id].ex).length,0);
+  $('wallet').textContent='🪙 '+p.coins;
+  $('st1').textContent='Chaos Claw game: '+(p.unlocked.claw?'🔓 Unlocked':'🔒 Locked');
+  $('st2').textContent='Exclusives: '+ex+'/'+tot+(ticketBonus()>0?' · Luck bonus +'+Math.round(ticketBonus()*100)+'% on 🎫':'');
+  $('insert').hidden=state!=='idle';
+  $('insert').disabled=p.coins<COST;
+  $('insert').textContent=p.coins<COST?'Need '+(COST-p.coins)+' more 🪙 (win matches!)':(got?'Play again · 20 🪙':'Insert 20 🪙 to play');
+  const live=state==='aim';
+  for(const id of['bl','br','bd'])$(id).disabled=!live;
+}
+function newRound(){
+  if(!A||!A.spend(COST)){ui();return;}
+  fillMachine();claw={x:HOME,y:RAIL+30,open:1};carry=[];state='aim';msg='';got=null;$('note').textContent='';ui();
+}
+function drop(){if(state==='aim')state='drop';}
+function prize(it){
+  let txt='';
+  if(it.k==='coin'){const n=10+5*Math.floor(Math.random()*7);A.addCoins(n);txt='🪙 +'+n+' coins!';}
+  else if(it.k==='plush'){A.addCoins(5);txt='🧸 Cute! +5 coins';}
+  else if(it.k==='cos'){
+    const r=A.giveExclusive();
+    if(r){txt='🎨 New exclusive: '+r.name+'! Equip it in the shop.';}
+    else{A.addCoins(40);txt='🎨 Duplicate converted: +40 coins';}
+  }else{
+    if(A.isUnlocked('claw')){A.addCoins(60);txt='🎫 Already unlocked, so +60 coins';}
+    else{A.unlock('claw');txt='🎫 CHAOS CLAW UNLOCKED! Find it in the lobby.';}
+    A.pity(0);
+  }
+  return txt;
+}
+function finish(c){
+  let txt;
+  if(c){txt=prize(c.it);got=c.it.k;if(c.it.k!=='ticket')A.pity(A.pity()+1);}
+  else{txt=msg||'Nothing this time. Luck bonus +7% on the 🎫!';got='none';A.pity(A.pity()+1);}
+  $('note').textContent=txt;msg=txt;msgT=3;state='idle';ui();
+}
+function step(dt){
+  for(const it of items){if(it.y<FLOOR-it.r||it.vy){it.vy+=.5;it.y+=it.vy;if(it.y>=FLOOR-it.r){it.y=FLOOR-it.r;it.vy=0;}}}
+  if(msgT>0)msgT-=dt;
+  if(state==='aim'){
+    const d=(keys.ArrowRight||keys.KeyD||vk.r?1:0)-(keys.ArrowLeft||keys.KeyA||vk.l?1:0);
+    claw.x=Math.min(W-40,Math.max(HOME,claw.x+d*3.2));
+  }else if(state==='drop'){
+    claw.y+=4.2;if(claw.y>=FLOOR-40){claw.y=FLOOR-40;state='close';t=0;}
+  }else if(state==='close'){
+    t+=dt;claw.open=Math.max(0,1-t/.5);
+    if(t>=.5){
+      const reach=36,c=items.filter(i=>Math.abs(i.x-claw.x)<=reach).sort((a,b)=>Math.abs(a.x-claw.x)-Math.abs(b.x-claw.x))[0];
+      carry=[];
+      if(c){
+        const ge=Math.min(1,Math.max(.05,c.g*(1-.5*Math.abs(c.x-claw.x)/reach)));
+        if(Math.random()<Math.min(1,ge+.25)){items.splice(items.indexOf(c),1);carry.push({it:c,slip:Math.random()<(1-ge)*.65,at:.2+Math.random()*.6});}
+        else msg='It slipped right out of the claw!';
+      }else msg='Nothing under the claw!';
+      state='lift';
+    }
+  }else if(state==='lift'){
+    claw.y-=3.6;
+    const p=(FLOOR-40-claw.y)/(FLOOR-40-(RAIL+30));
+    for(const c of[...carry])if(c.slip&&p>=c.at){
+      carry.splice(carry.indexOf(c),1);
+      items.push({k:c.it.k,x:claw.x,y:claw.y+30,vy:0,r:c.it.r,g:c.it.g});
+      msg='Slipped on the way up!';
+    }
+    if(claw.y<=RAIL+30){claw.y=RAIL+30;state='carry';}
+  }else if(state==='carry'){
+    claw.x-=3.6;if(claw.x<=HOME){claw.x=HOME;state='release';t=0;}
+  }else if(state==='release'){
+    t+=dt;if(t>.3)claw.open=1;
+    if(t>=1){const c=carry[0];carry=[];finish(c);}
+  }
+}
+function circ(x,y,r,f,s,lw){g.beginPath();g.arc(x,y,r,0,7);if(f){g.fillStyle=f;g.fill();}if(s){g.strokeStyle=s;g.lineWidth=lw;g.stroke();}}
+function draw(){
+  g.fillStyle='#2a1240';g.fillRect(0,0,W,H);
+  g.fillStyle='#ff4fc0';g.fillRect(0,0,W,12);g.fillRect(0,0,12,H);g.fillRect(W-12,0,12,H);
+  const gl=g.createLinearGradient(0,0,0,FLOOR);gl.addColorStop(0,'#5c3a96');gl.addColorStop(1,'#3a2166');
+  g.fillStyle=gl;g.fillRect(12,12,W-24,FLOOR-12);
+  g.fillStyle='#c78cff';g.fillRect(12,RAIL-6,W-24,8);
+  g.fillStyle='#1b0c2e';g.fillRect(12,FLOOR,W,H-FLOOR);
+  g.fillStyle='#ffcf4a';g.fillRect(12,FLOOR,W-24,6);
+  g.fillStyle='#120820';g.fillRect(12,FLOOR-110,CHUTE-12,110+(H-FLOOR));
+  g.fillStyle='#ffcf4a';g.font='bold 15px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';
+  g.fillText('PRIZE',70,FLOOR+30);g.fillText('▼',70,FLOOR-60);
+  for(const it of items){g.font=(it.r*1.8)+'px serif';g.fillText(KINDS[it.k].e,it.x,it.y);}
+  const sp=4+claw.open*29;
+  g.strokeStyle='#ddd';g.lineWidth=4;g.beginPath();g.moveTo(claw.x,RAIL);g.lineTo(claw.x,claw.y);g.stroke();
+  circ(claw.x,RAIL,8,'#c78cff');circ(claw.x,claw.y,11,'#ff4fc0','#fff',3);
+  g.strokeStyle='#ff4fc0';g.lineWidth=6;g.lineCap='round';
+  for(const s of[-1,1]){g.beginPath();g.moveTo(claw.x+s*6,claw.y+6);g.lineTo(claw.x+s*sp,claw.y+34);g.lineTo(claw.x+s*(sp-8),claw.y+46);g.stroke();}
+  for(const c of carry){g.font=(c.it.r*1.8)+'px serif';g.fillStyle='#fff';g.fillText(KINDS[c.it.k].e,claw.x,claw.y+36);}
+  if(state==='aim'){g.setLineDash([4,8]);g.strokeStyle='rgba(255,255,255,.3)';g.lineWidth=2;g.beginPath();g.moveTo(claw.x,claw.y+40);g.lineTo(claw.x,FLOOR);g.stroke();g.setLineDash([]);}
+  if(msgT>0&&msg){g.fillStyle='rgba(0,0,0,.65)';g.fillRect(0,H/2-50,W,100);g.fillStyle='#fff';g.font='26px Bungee,Impact,sans-serif';
+    const words=msg.split(' '),mid=Math.ceil(words.length/2);
+    if(msg.length>34){g.fillText(words.slice(0,mid).join(' '),W/2,H/2-16);g.fillText(words.slice(mid).join(' '),W/2,H/2+20);}else g.fillText(msg,W/2,H/2);}
+}
+function loop(tm){
+  const d=Math.min(.05,(tm-last)/1000||0);last=tm;
+  acc+=d;while(acc>=1/60){step(1/60);acc-=1/60;}
+  draw();requestAnimationFrame(loop);
+}
+const hold=(id,k)=>{const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();vk[k]=1;b.classList.add('down');});for(const ev of['pointerup','pointercancel','pointerleave'])b.addEventListener(ev,()=>{vk[k]=0;b.classList.remove('down');});};
+hold('bl','l');hold('br','r');
+$('bd').addEventListener('pointerdown',e=>{e.preventDefault();drop();});
+addEventListener('keydown',e=>{keys[e.code]=1;if(['ArrowLeft','ArrowRight','ArrowDown','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'||e.code==='ArrowDown')drop();});
+addEventListener('keyup',e=>keys[e.code]=0);
+$('insert').addEventListener('click',newRound);
+fillMachine();ui();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
